@@ -10,6 +10,7 @@ import Foundation
 
 protocol LoginPresenterProtocol: AnyObject {
     func login(email: String, password: String, isLoggedIn: Binding<Bool>)
+    func checkLoginStatus(isLoggedIn: Binding<Bool>)
 }
 
 protocol LoginInteractorProtocol: AnyObject {
@@ -20,10 +21,36 @@ protocol LoginRouterProtocol {
     func navigateToMovieList(isLoggedIn: Binding<Bool>)
 }
 
+protocol LoginRepositoryProtocol {
+    func saveLoginStatus(isLoggedIn: Bool)
+    func getLoginStatus() -> Bool
+}
+
+class LoginRepository: LoginRepositoryProtocol {
+    private let loginKey = "isLoggedIn"
+
+    func saveLoginStatus(isLoggedIn: Bool) {
+        UserDefaults.standard.set(isLoggedIn, forKey: loginKey)
+    }
+
+    func getLoginStatus() -> Bool {
+        return UserDefaults.standard.bool(forKey: loginKey)
+    }
+}
+
 class LoginInteractor: LoginInteractorProtocol {
+    private let repository: LoginRepositoryProtocol
+
+    init(repository: LoginRepositoryProtocol = LoginRepository()) {
+        self.repository = repository
+    }
+
     func authenticate(email: String, password: String, completion: @escaping (Bool) -> Void) {
         let isValid = email == "test@example.com" && password == "password123"
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            if isValid {
+                self.repository.saveLoginStatus(isLoggedIn: true)
+            }
             completion(isValid)
         }
     }
@@ -31,13 +58,20 @@ class LoginInteractor: LoginInteractorProtocol {
 
 class LoginPresenter: ObservableObject, LoginPresenterProtocol {
     @Published var errorMessage: String?
-    
-    var interactor: LoginInteractorProtocol
-    var router: LoginRouterProtocol
+    private let interactor: LoginInteractorProtocol
+    private let router: LoginRouterProtocol
+    private let repository: LoginRepositoryProtocol
 
-    init(interactor: LoginInteractorProtocol, router: LoginRouterProtocol) {
+    init(interactor: LoginInteractorProtocol, router: LoginRouterProtocol, repository: LoginRepositoryProtocol = LoginRepository()) {
         self.interactor = interactor
         self.router = router
+        self.repository = repository
+    }
+
+    func checkLoginStatus(isLoggedIn: Binding<Bool>) {
+        DispatchQueue.main.async {
+            isLoggedIn.wrappedValue = self.repository.getLoginStatus()
+        }
     }
 
     func login(email: String, password: String, isLoggedIn: Binding<Bool>) {
@@ -62,9 +96,10 @@ class LoginRouter: LoginRouterProtocol {
     }
     
     static func setupLoginModule(isLoggedIn: Binding<Bool>) -> some View {
-        let interactor = LoginInteractor()
+        let repository = LoginRepository()
+        let interactor = LoginInteractor(repository: repository)
         let router = LoginRouter()
-        let presenter = LoginPresenter(interactor: interactor, router: router)
+        let presenter = LoginPresenter(interactor: interactor, router: router, repository: repository)
         let loginView = LoginView(presenter: presenter, isLoggedIn: isLoggedIn)
 
         return loginView
@@ -144,6 +179,9 @@ struct LoginView: View {
             Spacer()
         }
         .background(Color(UIColor.systemGray5).edgesIgnoringSafeArea(.all))  // Fondo gris claro
+        .onAppear {
+            presenter.checkLoginStatus(isLoggedIn: $isLoggedIn)
+        }
         .onTapGesture {
             hideKeyboard()
         }
