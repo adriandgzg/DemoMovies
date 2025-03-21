@@ -142,45 +142,47 @@ struct MovieListView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack {
-                    ForEach(presenter.movies) { movie in
-                        MovieCard(movie: movie)
-                            .padding(.horizontal)
-                            .padding(.vertical, 5)
-                            .onTapGesture {
-                                selectedMovie = movie
-                                isDetailViewActive = true
-                            }
-                            .onAppear {
-                                if movie == presenter.movies.last {
-                                    refreshMovies()
-                                }
-                            }
-                    }
-                }
-                .padding(.top)
-            }
-            .navigationTitle("Top Rated Movies")
-            .onAppear {
-                presenter.fetchTopRatedMovies()
-            }
-            .refreshable {
-                refreshMovies()
-            }
-            .overlay {
+            VStack {
+                // Mostrar el indicador de carga cuando isRefreshing es true
                 if isRefreshing {
-                    ProgressView()
+                    ProgressView("Loading...")
                         .progressViewStyle(CircularProgressViewStyle())
                         .padding()
                 }
-            }
-            .navigationDestination(isPresented: $isDetailViewActive) {
-                if let movie = selectedMovie {
-                    let interactor = DetailMovieInteractor()
-                    let router = DetailMovieRouter()
-                    let presenter = DetailMoviePresenter(interactor: interactor, router: router)
-                    DetailMovieView(presenter: presenter, movieId: movie.id)
+                
+                ScrollView {
+                    LazyVStack {
+                        ForEach(presenter.movies) { movie in
+                            MovieCard(movie: movie)
+                                .padding(.horizontal)
+                                .padding(.vertical, 5)
+                                .onTapGesture {
+                                    selectedMovie = movie
+                                    isDetailViewActive = true
+                                }
+                                .onAppear {
+                                    if movie == presenter.movies.last {
+                                        refreshMovies()
+                                    }
+                                }
+                        }
+                    }
+                    .padding(.top)
+                }
+                .navigationTitle("Top Rated Movies")
+                .onAppear {
+                    presenter.fetchTopRatedMovies()
+                }
+                .refreshable {
+                    refreshMovies()
+                }
+                .navigationDestination(isPresented: $isDetailViewActive) {
+                    if let movie = selectedMovie {
+                        let interactor = DetailMovieInteractor()
+                        let router = DetailMovieRouter()
+                        let presenter = DetailMoviePresenter(interactor: interactor, router: router)
+                        DetailMovieView(presenter: presenter, movieId: movie.id)
+                    }
                 }
             }
         }
