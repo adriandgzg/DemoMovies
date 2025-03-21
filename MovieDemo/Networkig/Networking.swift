@@ -98,7 +98,7 @@ struct MovieResponse: Decodable {
     let results: [Movie]?
 }
 
-struct Movie: Decodable, Identifiable, Equatable {
+struct Movie: Codable, Identifiable, Equatable {
     let id: Int
     let title: String
     let overview: String
